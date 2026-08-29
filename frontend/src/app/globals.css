@@ -1,0 +1,230 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Dark mode fires in TWO ways so the design stays fully dark either way:
+ *   - `.dark` class on an ancestor (kept for a future theme toggle), and
+ *   - the OS `prefers-color-scheme: dark` (no toggle exists today).
+ * Both branches redefine the same tokens below, and every hardcoded `dark:*`
+ * utility in components resolves through this variant.
+ */
+@custom-variant dark {
+  &:where(.dark, .dark *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:not(.light *)) {
+      @slot;
+    }
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-heading);
+
+  /* --- PaperLens palette exposed as Tailwind utilities (bg-paper, text-ink…) --- */
+  --color-paper: var(--pl-paper);
+  --color-surface: var(--pl-surface);
+  --color-ink: var(--pl-ink);
+  --color-ink-soft: var(--pl-ink-soft);
+  --color-ink-faint: var(--pl-ink-faint);
+  --color-line: var(--pl-line);
+  --color-line-soft: var(--pl-line-soft);
+  --color-accent-brand: var(--pl-accent);
+  --color-accent-brand-soft: var(--pl-accent-soft);
+  --color-accent-brand-ink: var(--pl-accent-ink);
+  --color-amber: var(--pl-amber);
+  --color-amber-soft: var(--pl-amber-soft);
+  --color-red: var(--pl-red);
+  --color-red-soft: var(--pl-red-soft);
+  --color-blue: var(--pl-blue);
+  --color-blue-soft: var(--pl-blue-soft);
+  --color-code-bg: var(--pl-code-bg);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * PaperLens design system — authoritative token values from the build sheet.
+ * The raw palette lives in --pl-* tokens; shadcn's semantic tokens are then
+ * repointed at the palette so existing components inherit the look.
+ *
+ * IMPORTANT: shadcn's `--accent` means "subtle hover background", NOT the brand
+ * green. The brand green is driven through `--primary`. `--accent` is mapped to
+ * the soft surfaces so sidebar rows / ghost buttons hover softly, not solid green.
+ */
+:root {
+  /* PaperLens palette — LIGHT */
+  --pl-paper: #f7f8f5;
+  --pl-surface: #ffffff;
+  --pl-ink: #1e2833;
+  --pl-ink-soft: #4c5a66;
+  --pl-ink-faint: #7a8894;
+  --pl-line: #dce1dd;
+  --pl-line-soft: #e8ece8;
+  --pl-accent: #0e7c66;
+  --pl-accent-soft: #e3f0ec;
+  --pl-accent-ink: #0a5c4c;
+  --pl-amber: #a85f0b;
+  --pl-amber-soft: #f6ebd9;
+  --pl-red: #b3261e;
+  --pl-red-soft: #f9e4e2;
+  --pl-blue: #2b5e96;
+  --pl-blue-soft: #e2ecf6;
+  --pl-code-bg: #eff2ee;
+
+  --radius: 0.5rem;
+
+  /* shadcn semantics → PaperLens */
+  --background: var(--pl-paper);
+  --foreground: var(--pl-ink);
+  --card: var(--pl-surface);
+  --card-foreground: var(--pl-ink);
+  --popover: var(--pl-surface);
+  --popover-foreground: var(--pl-ink);
+  --primary: var(--pl-accent);
+  --primary-foreground: #ffffff;
+  --secondary: var(--pl-line-soft);
+  --secondary-foreground: var(--pl-ink);
+  --muted: var(--pl-line-soft);
+  --muted-foreground: var(--pl-ink-faint);
+  --accent: var(--pl-accent-soft); /* subtle hover bg — NOT the brand green */
+  --accent-foreground: var(--pl-accent-ink);
+  --destructive: var(--pl-red);
+  --border: var(--pl-line);
+  --input: var(--pl-line);
+  --ring: var(--pl-accent);
+  --chart-1: var(--pl-accent);
+  --chart-2: var(--pl-blue);
+  --chart-3: var(--pl-amber);
+  --chart-4: var(--pl-red);
+  --chart-5: var(--pl-ink-soft);
+
+  --sidebar: var(--pl-surface);
+  --sidebar-foreground: var(--pl-ink);
+  --sidebar-primary: var(--pl-accent);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--pl-accent-soft);
+  --sidebar-accent-foreground: var(--pl-accent-ink);
+  --sidebar-border: var(--pl-line);
+  --sidebar-ring: var(--pl-accent);
+}
+
+/* Dark values — applied under BOTH `.dark` and prefers-color-scheme. */
+.dark {
+  --pl-paper: #141a1f;
+  --pl-surface: #1b232a;
+  --pl-ink: #e6eaec;
+  --pl-ink-soft: #a9b4bc;
+  --pl-ink-faint: #7e8a93;
+  --pl-line: #2e3941;
+  --pl-line-soft: #263037;
+  --pl-accent: #3fb89a;
+  --pl-accent-soft: #173029;
+  --pl-accent-ink: #5ecdb0;
+  --pl-amber: #d99a45;
+  --pl-amber-soft: #33270f;
+  --pl-red: #e8837a;
+  --pl-red-soft: #331715;
+  --pl-blue: #7aaedb;
+  --pl-blue-soft: #16242f;
+  --pl-code-bg: #10161b;
+
+  --primary-foreground: #08120f;
+  --sidebar-primary-foreground: #08120f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --pl-paper: #141a1f;
+    --pl-surface: #1b232a;
+    --pl-ink: #e6eaec;
+    --pl-ink-soft: #a9b4bc;
+    --pl-ink-faint: #7e8a93;
+    --pl-line: #2e3941;
+    --pl-line-soft: #263037;
+    --pl-accent: #3fb89a;
+    --pl-accent-soft: #173029;
+    --pl-accent-ink: #5ecdb0;
+    --pl-amber: #d99a45;
+    --pl-amber-soft: #33270f;
+    --pl-red: #e8837a;
+    --pl-red-soft: #331715;
+    --pl-blue: #7aaedb;
+    --pl-blue-soft: #16242f;
+    --pl-code-bg: #10161b;
+
+    --primary-foreground: #08120f;
+    --sidebar-primary-foreground: #08120f;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  }
+  html {
+    @apply font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading), var(--font-sans), ui-sans-serif, sans-serif;
+  }
+}
+
+/* Mono-label helper — IBM Plex Mono, uppercase, tracked, faint (section labels,
+   column headers, scope/model chips). */
+.pl-mono-label {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  color: var(--pl-ink-faint);
+}
