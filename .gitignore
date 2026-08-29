@@ -56,3 +56,7 @@ Thumbs.db
 
 # ── Tooling ──────────────────────────────────────────────
 .claude/settings.local.json
+
+.playwright-mcp/*.png
+/*.png
+.playwright-mcp/

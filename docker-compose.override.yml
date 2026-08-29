@@ -1,0 +1,51 @@
+# PaperLens — dev override (applied automatically by `docker compose up`).
+#
+# Adds source bind-mounts + hot reload on top of the base stack, and optionally
+# exposes infrastructure ports to 127.0.0.1 for local inspection (psql, the
+# Qdrant dashboard, redis-cli). Nothing here is used in production — deploy with
+# `docker compose -f docker-compose.yml up` to skip this file.
+
+services:
+  # Expose infra to localhost ONLY for local debugging (still never 0.0.0.0).
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  qdrant:
+    ports:
+      - "127.0.0.1:6333:6333"  # REST + dashboard
+      - "127.0.0.1:6334:6334"  # gRPC
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  # Mount source so schema edits are picked up without a rebuild.
+  migrate:
+    volumes:
+      - ./backend:/app
+
+  api:
+    # --reload restarts uvicorn on source change.
+    command:
+      ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./backend:/app
+      - appdata:/data
+
+  worker:
+    # --watch reloads the ARQ worker when files under app/ change. It needs the
+    # `watchfiles` package, which is provided transitively by uvicorn[standard]
+    # (a hard dependency in pyproject.toml) in this shared image. If the worker is
+    # ever split to its own image, add the `arq[watch]` extra there.
+    command: ["arq", "app.worker.WorkerSettings", "--watch", "app"]
+    volumes:
+      - ./backend:/app
+      - appdata:/data
+
+  frontend:
+    # Next.js dev server with hot reload; node_modules stays in the image layer.
+    command: ["npm", "run", "dev"]
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules

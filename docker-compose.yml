@@ -1,0 +1,149 @@
+# PaperLens — base Compose stack (production-shaped).
+#
+# Modular monolith: `api` and `worker` are the same image (./backend) with
+# different commands. `rag/` (inside that image) is the only code that talks to
+# Qdrant. Postgres is the source of truth; Redis backs the ARQ queue.
+#
+# Security (README): app services bind 127.0.0.1 only; infrastructure services
+# (postgres, qdrant, redis) are NEVER published to the host — they are reachable
+# only on the internal Compose network. Secrets come from a shared .env.
+#
+# The dev override (docker-compose.override.yml) is applied automatically by
+# `docker compose up` and adds source mounts + hot reload.
+
+name: paperlens
+
+services:
+  # --------------------------------------------------------------------- #
+  # Infrastructure (no host ports — internal network only)
+  # --------------------------------------------------------------------- #
+  postgres:
+    image: postgres:16.4
+    environment:
+      POSTGRES_USER: paperlens
+      POSTGRES_PASSWORD: paperlens
+      POSTGRES_DB: paperlens
+    # log_min_duration_statement=500 surfaces slow queries from day one (§8).
+    command: ["postgres", "-c", "log_min_duration_statement=500"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paperlens -d paperlens"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  qdrant:
+    # Pinned: k-explicit RRF requires Qdrant >= v1.16 (Build Sheet §5.4).
+    image: qdrant/qdrant:v1.16.1
+    volumes:
+      - qdrantdata:/qdrant/storage
+      - qdrantsnapshots:/qdrant/snapshots
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    # noeviction: the ARQ queue must never silently drop jobs under memory pressure.
+    command: ["redis-server", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # --------------------------------------------------------------------- #
+  # One-shot migration: runs before api/worker start.
+  # --------------------------------------------------------------------- #
+  migrate:
+    build:
+      context: ./backend
+    image: paperlens-backend:latest
+    command: ["alembic", "upgrade", "head"]
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # --------------------------------------------------------------------- #
+  # Application (bind 127.0.0.1 only)
+  # --------------------------------------------------------------------- #
+  api:
+    build:
+      context: ./backend
+    image: paperlens-backend:latest
+    command:
+      ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - appdata:/data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+    image: paperlens-backend:latest
+    command: ["arq", "app.worker.WorkerSettings"]
+    env_file:
+      - .env
+    environment:
+      # Cap native thread pools so the worker stays within its memory/CPU budget.
+      # 1, not 2: OMP_NUM_THREADS=2 makes Docling drop 30–60% of PDF text
+      # nondeterministically (measured, P1). Keep at 1 until root-caused.
+      OMP_NUM_THREADS: "1"
+    # Docling peaks at ~6.2 GB RSS; 8G is a tight ceiling with MAX_JOBS=1 (§8).
+    mem_limit: 8g
+    volumes:
+      # Shares the data volume with the api (uploads/ · figures/ · models/).
+      - appdata:/data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    restart: unless-stopped
+
+  # --------------------------------------------------------------------- #
+  # Frontend (Next.js 15). Dockerfile is owned by Agent D — this only wires
+  # the build context and network; do not create ./frontend/Dockerfile here.
+  # --------------------------------------------------------------------- #
+  frontend:
+    build:
+      context: ./frontend
+    image: paperlens-frontend:latest
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  qdrantdata:
+  qdrantsnapshots:
+  redisdata:
+  appdata:
