@@ -4,6 +4,8 @@
 
 PaperLens is a project-scoped question-answering system for research papers. Every number in an answer points back to the exact table, the exact figure, and the exact page it came from. When there isn't enough evidence in your corpus, PaperLens says so instead of making something up.
 
+![PaperLens — a grounded answer with the evidence panel open, showing the verbatim quote and its exact page](docs/images/cited-answer.png)
+
 ## Project Context
 
 Applied researchers and ML practitioners routinely need to extract **trustworthy numbers and conclusions from 10–30 self-selected papers** about a specific technique. The information they need usually lives in **tables and figures**, not abstracts. Existing tools either destroy table/figure structure when parsing PDFs, or answer fluently without any way to verify the claim down to the page — forcing users to reopen the PDF manually and losing the entire speed benefit.
@@ -16,6 +18,20 @@ PaperLens is designed so that **you don't have to trust it**:
 
 - **A — Table & figure fidelity.** Ask about data — get back the *original* table and the *original* figure, not a paraphrase. (Where ChatGPT breaks two-column tables and NotebookLM drops figures.)
 - **B — Page-verifiable citations.** Every claim carries an inline citation `[n]` that opens the exact page in the PDF viewer. If the evidence isn't in your corpus, the app **abstains** instead of guessing.
+
+## Screenshots
+
+| Figures in answers | Original tables |
+|---|---|
+| Real figure crops rendered inline and cited — not re-drawn by the model. | Structured tables preserved from the source, right-aligned numerics. |
+| ![A figure rendered inline in the answer](docs/images/figure-in-answer.png) | ![A structured table rendered in the answer](docs/images/table-in-answer.png) |
+| **Honest abstention** | **Documents & ingestion** |
+| Declines out-of-corpus questions with zero citations — no fabrication. | Live ingest status, per-document delete & retry. |
+| ![The app abstaining on an out-of-corpus question](docs/images/abstain.png) | ![The documents screen with ingest status and actions](docs/images/documents.png) |
+
+Light and dark themes are both supported:
+
+![PaperLens in dark mode](docs/images/dark-mode.png)
 
 ## Features
 
