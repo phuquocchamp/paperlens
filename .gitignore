@@ -60,3 +60,4 @@ Thumbs.db
 .playwright-mcp/*.png
 /*.png
 .playwright-mcp/
+.claude/

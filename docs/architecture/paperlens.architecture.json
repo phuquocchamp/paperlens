@@ -1,0 +1,362 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "PaperLens — Modular Monolith Architecture",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1340,
+      650
+    ],
+    "views": [
+      {
+        "id": "query-path",
+        "label": "Query path",
+        "focus": [
+          "browser",
+          "bff",
+          "api",
+          "qdrant",
+          "postgres",
+          "deepseek"
+        ],
+        "note": "Latency-sensitive chat: the browser reaches FastAPI only through the same-origin Next.js BFF."
+      },
+      {
+        "id": "ingest-path",
+        "label": "Ingestion path",
+        "focus": [
+          "api",
+          "redis",
+          "worker",
+          "appdata",
+          "openai",
+          "qdrant"
+        ],
+        "note": "Upload is enqueued on Redis and drained by the ARQ worker, which owns every documents-table write."
+      },
+      {
+        "id": "state",
+        "label": "Durable state",
+        "focus": [
+          "postgres",
+          "qdrant",
+          "redis",
+          "appdata"
+        ],
+        "note": "Postgres is the source of truth, Qdrant holds vectors, Redis is queue plus caches, the volume holds bytes."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "Browser",
+      "sublabel": "useChat · TanStack Query",
+      "pos": [
+        60,
+        40
+      ],
+      "size": [
+        210,
+        64
+      ]
+    },
+    {
+      "id": "bff",
+      "type": "frontend",
+      "label": "Next.js BFF",
+      "sublabel": "App Router · 127.0.0.1:3000",
+      "pos": [
+        60,
+        180
+      ],
+      "size": [
+        210,
+        70
+      ],
+      "tag": "same-origin /api/*"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI api",
+      "sublabel": "uvicorn app.main:app · :8000",
+      "pos": [
+        400,
+        180
+      ],
+      "size": [
+        210,
+        70
+      ]
+    },
+    {
+      "id": "deepseek",
+      "type": "external",
+      "label": "DeepSeek",
+      "sublabel": "deepseek-chat",
+      "pos": [
+        1100,
+        180
+      ],
+      "size": [
+        200,
+        70
+      ]
+    },
+    {
+      "id": "openai",
+      "type": "external",
+      "label": "OpenAI",
+      "sublabel": "embeddings · vision · fallback",
+      "pos": [
+        1100,
+        355
+      ],
+      "size": [
+        200,
+        70
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": "source of truth",
+      "pos": [
+        110,
+        355
+      ],
+      "size": [
+        210,
+        70
+      ]
+    },
+    {
+      "id": "qdrant",
+      "type": "database",
+      "label": "Qdrant v1.16.1",
+      "sublabel": "alias \"chunks\" · dense + sparse",
+      "pos": [
+        460,
+        355
+      ],
+      "size": [
+        210,
+        70
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "messagebus",
+      "label": "Redis 7.4",
+      "sublabel": "ARQ queue · caches · counters",
+      "pos": [
+        780,
+        355
+      ],
+      "size": [
+        210,
+        70
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "ARQ worker",
+      "sublabel": "arq app.worker.WorkerSettings",
+      "pos": [
+        400,
+        530
+      ],
+      "size": [
+        210,
+        70
+      ],
+      "tag": "max_jobs 1"
+    },
+    {
+      "id": "appdata",
+      "type": "cloud",
+      "label": "appdata volume",
+      "sublabel": "/data — uploads · figures · models",
+      "pos": [
+        60,
+        530
+      ],
+      "size": [
+        210,
+        70
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Docker Compose network: paperlens_default",
+      "wraps": [
+        "bff",
+        "api",
+        "postgres",
+        "qdrant",
+        "redis",
+        "worker",
+        "appdata"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "No published host ports",
+      "wraps": [
+        "postgres",
+        "qdrant",
+        "redis"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-to-bff",
+      "from": "browser",
+      "to": "bff",
+      "label": "HTTPS · same-origin",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 34
+    },
+    {
+      "id": "bff-to-api",
+      "from": "bff",
+      "to": "api",
+      "label": "SSE passthrough",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "api-to-deepseek",
+      "from": "api",
+      "to": "deepseek",
+      "label": "stream answer",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "api-to-openai",
+      "from": "api",
+      "to": "openai",
+      "label": "query embedding · fallback",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "api-to-postgres",
+      "from": "api",
+      "to": "postgres",
+      "label": "projects · documents · conversations",
+      "fromSide": "left",
+      "toSide": "top"
+    },
+    {
+      "id": "api-to-qdrant",
+      "from": "api",
+      "to": "qdrant",
+      "label": "hybrid RRF search",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "api-to-redis",
+      "from": "api",
+      "to": "redis",
+      "label": "enqueue · limits · stop flags",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "redis-to-worker",
+      "from": "redis",
+      "to": "worker",
+      "label": "ARQ dequeue",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "right"
+    },
+    {
+      "id": "worker-to-redis",
+      "from": "worker",
+      "to": "redis",
+      "label": "embedding · caption cache",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "bottom"
+    },
+    {
+      "id": "worker-to-openai",
+      "from": "worker",
+      "to": "openai",
+      "label": "embeddings · captions",
+      "fromSide": "bottom",
+      "toSide": "bottom"
+    },
+    {
+      "id": "worker-to-postgres",
+      "from": "worker",
+      "to": "postgres",
+      "label": "status · chunks · figures",
+      "fromSide": "left",
+      "toSide": "bottom"
+    },
+    {
+      "id": "worker-to-qdrant",
+      "from": "worker",
+      "to": "qdrant",
+      "label": "upsert vectors",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "worker-to-appdata",
+      "from": "worker",
+      "to": "appdata",
+      "label": "uploads · figure crops",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "right",
+      "labelDy": 28
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Query path (api)",
+      "items": [
+        "Browser → BFF → FastAPI; the browser never calls the backend",
+        "Dense + sparse prefetch, explicit-k RRF, per-document quota",
+        "Abstain gate on top dense cosine returns zero citations"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Ingestion path (worker)",
+      "items": [
+        "One ARQ job: parse → crop → caption → chunk → embed → index",
+        "TEXT_READY once text is embedded, then FULL_READY after captions",
+        "Cron: stuck sweep every 10 min, corpus reconcile nightly at 03:00"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Boundaries",
+      "items": [
+        "app/rag is imported by both entrypoints — only it touches Qdrant",
+        "The ARQ task owns every documents-table write",
+        "Only api and frontend publish host ports; no auth in v1"
+      ]
+    }
+  ]
+}

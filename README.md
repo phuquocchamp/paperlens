@@ -122,21 +122,14 @@ Legend — **✅ Implemented** · **🟡 Partial** · **📋 Planned**
 
 **Modular monolith** — one backend codebase, two entrypoints (`api` + `worker`) built from the same image. The split is *interactive vs. batch*: the latency-sensitive query path stays in the API, while ingestion runs on the worker.
 
-```
-Browser (useChat)
-   │  same-origin /api/*  (Next.js BFF — browser never calls the backend directly)
-   ▼
-Next.js BFF ── SSE ──▶ FastAPI api ──▶ PostgreSQL (source of truth)
-                          │        └──▶ Qdrant     (hybrid RRF retrieval)
-                          ▼
-                    Redis · ARQ queue
-                          │
-                          ▼
-                    ARQ worker ──▶ parse → crop → caption → chunk → embed → upsert
-                          └──────▶ Volume (uploads/ · figures/ · models/)
-```
+![PaperLens architecture — the Next.js BFF fronting FastAPI and the ARQ worker over shared Postgres, Qdrant, Redis and volume storage](docs/images/architecture.png)
+
+> An interactive version — light/dark themes, guided views for the query and ingestion paths, search, relationship tracing, and PNG/JPEG/WebP/SVG export — ships as a
+> self-contained page at `docs/architecture/paperlens-architecture.html`. GitHub serves it as raw markup, so clone the repo and open the file in a browser.
+> Its source of truth is the checked-in [`docs/architecture/paperlens.architecture.json`](docs/architecture/paperlens.architecture.json) specification.
 
 - `backend/app/rag/` is an internal package shared by `api` and `worker` — **not** a separate HTTP service. Only `rag/` touches Qdrant; it never writes the `documents` table (the ARQ task owns those writes).
+- A one-shot `migrate` service runs `alembic upgrade head` and gates both `api` and `worker` on `service_completed_successfully`; it is omitted from the diagram as bootstrap-only.
 - A document becomes queryable as soon as its text is embedded (`TEXT_READY`); figure captioning continues in the background (`FULL_READY`).
 - The intended module boundaries (e.g. "only `rag/` touches Qdrant") are documented in [`CONTRACT.md`](CONTRACT.md); machine enforcement via `import-linter` is planned, not yet wired.
 
